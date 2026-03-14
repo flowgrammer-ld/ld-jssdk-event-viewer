@@ -71,11 +71,10 @@
   }
 
   var modules = [
-    baseUrl + '/ld-utils.js',
-    baseUrl + '/panel-core.js',
     baseUrl + '/interceptors.js',
     baseUrl + '/panel-html.js',
-    baseUrl + '/panel.js'
+    baseUrl + '/panel.js',
+    baseUrl + '/bookmarklet-init.js'
   ];
 
   var cssUrl = baseUrl + '/bookmarklet.css';

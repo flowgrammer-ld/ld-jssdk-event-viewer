@@ -1,20 +1,17 @@
 /**
- * Bookmarklet panel – thin adapter over shared/panel-core.js
+ * Bookmarklet initializer – thin adapter that wires the event bus
+ * to the extension's panel.js via window.LDPanel.
  *
  * Bookmarklet-specific responsibilities:
  *   1. Shadow DOM host creation & CSS loading
  *   2. Draggable panel header
  *   3. Close / minimize buttons
- *   4. Wire event bus (window.__ldEventBus) → core handlers
+ *   4. Wire event bus (window.__ldEventBus) → LDPanel handlers
  *
- * Everything else (UI setup, tables, timeline, counters, clear/export,
- * collapsible sections, copy, filters, toasts) lives in panel-core.js.
- *
- * Requires:
- *   - shared/ld-utils.js   (window.LDUtils)
- *   - shared/panel-core.js (window.LDPanelCore)
- *   - interceptors.js      (window.__ldEventBus)
- *   - panel-html.js        (window.__ldPanelHTML)
+ * Requires (loaded in order by loader.js):
+ *   - interceptors.js     (window.__ldEventBus)
+ *   - panel-html.js       (window.__ldPanelHTML)
+ *   - panel.js            (window.LDPanel)
  */
 (function () {
   'use strict';
@@ -29,8 +26,9 @@
 
   var bus = window.__ldEventBus;
   var panelHTML = window.__ldPanelHTML;
-  if (!bus || !panelHTML) {
-    console.error('[LD Event Viewer] Missing dependencies (event bus or panel HTML).');
+  var api = window.LDPanel;
+  if (!bus || !panelHTML || !api) {
+    console.error('[LD Event Viewer] Missing dependencies.');
     return;
   }
 
@@ -73,8 +71,8 @@
   // ================================================================
   // Draggable
   // ================================================================
-  function makeDraggable(core) {
-    var hdr = core.root.querySelector('.panel-header');
+  function makeDraggable() {
+    var hdr = shadow.querySelector('.panel-header');
     if (!hdr) return;
     var dragging = false, sx, sy, sr, st;
     hdr.addEventListener('mousedown', function (e) {
@@ -96,7 +94,7 @@
   // ================================================================
   // Bookmarklet-only buttons (close, minimize)
   // ================================================================
-  function setupBookmarkletButtons(core) {
+  function setupBookmarkletButtons() {
     var closeBtn = shadow.querySelector('#closeBtn');
     if (closeBtn) closeBtn.addEventListener('click', function () { host.style.display = 'none'; });
 
@@ -116,24 +114,14 @@
   }
 
   // ================================================================
-  // Wire event bus → shared core handlers
+  // Wire event bus → LDPanel handlers
   // ================================================================
-  function wireEvents(core) {
-    bus.on('eval', function (d) { core.handleEval(d); });
-
-    bus.on('sent', function (d) { core.handleSent(d); });
-
-    bus.on('goals', function (d) {
-      core.handleGoals(d, {
-        href: window.location.href,
-        search: window.location.search,
-        hash: window.location.hash
-      });
-    });
-
-    bus.on('stream:open', function (d) { core.handleStreamOpen(d); });
-
-    bus.on('stream:event', function (d) { core.handleStreamEvent(d); });
+  function wireEvents() {
+    bus.on('eval', function (d) { api.handleEval(d); });
+    bus.on('sent', function (d) { api.handleSent(d); });
+    bus.on('goals', function (d) { api.handleGoals(d); });
+    bus.on('stream:open', function (d) { api.handleStreamOpen(d); });
+    bus.on('stream:event', function (d) { api.handleStreamEvent(d); });
   }
 
   // ================================================================
@@ -143,33 +131,18 @@
     var doInit = function () {
       buildPanel();
 
-      var core;
-      var logEditor = {
-        insert: function (msg) {
-          var el = shadow.querySelector('textarea#networkDetails');
-          if (el) { el.value += '\n' + msg; if (core) core.updateEmptyState(el); }
-        },
-        setValue: function (msg) {
-          var el = shadow.querySelector('textarea#networkDetails');
-          if (el) { el.value = msg; if (core) core.updateEmptyState(el); }
-        }
-      };
+      // Point panel.js at the shadow DOM
+      api.setRoot(shadow);
+      api.setupButtons();
 
-      core = LDPanelCore.create({
-        root: shadow,
-        logEditor: logEditor
-      });
-
-      core.setup();
-      setupBookmarkletButtons(core);
-      makeDraggable(core);
-      wireEvents(core);
-      core.showToast('LD Event Viewer active \u2013 intercepting SDK traffic', 'info');
+      setupBookmarkletButtons();
+      makeDraggable();
+      wireEvents();
+      api.showToast('LD Event Viewer active \u2013 intercepting SDK traffic', 'info');
     };
 
     loadCSS(cssUrl).then(doInit).catch(function () {
       doInit();
-      // toast will show CSS warning after panel is built
     });
   };
 
