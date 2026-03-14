@@ -19,6 +19,22 @@ var extensionGlobals = {
   eventsData: [] // Store events for formatted view
 };
 
+// Aliases for shared utilities (loaded via shared/ld-utils.js)
+var escapeHtml = LDUtils.escapeHtml;
+var formatByteSize = LDUtils.formatByteSize;
+var formatFlagValue = LDUtils.formatFlagValue;
+var formatFlagReason = LDUtils.formatFlagReason;
+var formatEventValue = LDUtils.formatEventValue;
+var animateCounter = LDUtils.animateCounter;
+var getTimestamp = LDUtils.getTimestamp;
+var isLaunchDarklyUrl = LDUtils.isLaunchDarklyUrl;
+var parseContextHashFromUrl = LDUtils.parseContextHashFromUrl;
+var parseClientIDFromUrl = LDUtils.parseClientIDFromUrl;
+var parseUrlForContext = LDUtils.parseUrlForContext;
+var getFlagsInExperiment = LDUtils.getFlagsInExperiment;
+var doesUrlMatch = LDUtils.doesUrlMatch;
+var escapeStringRegexp = LDUtils.escapeRegex;
+
 main();
 
 //------------
@@ -34,11 +50,6 @@ function main() {
   
   checkDoNotTrack();
   setupButtons();
-}
-
-function getTimestamp() {
-  const now = new Date();
-  return now.toISOString().replace('T', ' ').substring(0, 19);
 }
 
 function setupButtons() {
@@ -223,43 +234,6 @@ function updateFeatureFlagsTable(flagsData) {
   }
 }
 
-function formatFlagValue(value) {
-  if (value === true) {
-    return '<span class="value-true">true</span>';
-  } else if (value === false) {
-    return '<span class="value-false">false</span>';
-  } else if (typeof value === 'string') {
-    return `<span class="value-string">"${escapeHtml(value)}"</span>`;
-  } else if (typeof value === 'number') {
-    return `<span class="value-number">${value}</span>`;
-  } else if (typeof value === 'object') {
-    return `<span class="value-string">${escapeHtml(JSON.stringify(value))}</span>`;
-  }
-  return String(value);
-}
-
-function formatFlagReason(reason) {
-  if (!reason) return '<span style="color: #999;">—</span>';
-  
-  let html = '';
-  
-  if (reason.kind) {
-    html += `<span class="reason-badge reason-kind">${escapeHtml(reason.kind)}</span>`;
-  }
-  
-  if (reason.inExperiment) {
-    html += `<span class="reason-badge reason-experiment">In Experiment</span>`;
-  }
-  
-  return html || '<span style="color: #999;">—</span>';
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 // Update Context Table
 function updateContextTable(contextData) {
   const container = document.getElementById('contextTableContainer');
@@ -360,6 +334,9 @@ function formatContextValue(key, value) {
   }
   return escapeHtml(String(value));
 }
+
+// Note: escapeHtml, formatFlagValue, formatFlagReason, formatEventValue, formatByteSize
+// are now provided by shared/ld-utils.js (LDUtils) and aliased at the top of this file.
 
 // ==================== Events Timeline Functions ====================
 
@@ -474,15 +451,6 @@ function showSectionView(containerSelector, emptyStateId, rawViewId, formattedVi
       }
     }
   }
-}
-
-/**
- * Check if URL is a LaunchDarkly SDK endpoint
- */
-function isLaunchDarklyUrl(url) {
-  if (!url) return false;
-  return url.includes('launchdarkly.com') || 
-         url.includes('launchdarkly.us');
 }
 
 function createEventCard(eventData) {
@@ -839,29 +807,6 @@ function createDetailRow(key, value) {
   </div>`;
 }
 
-/**
- * Format byte size to human-readable format
- */
-function formatByteSize(bytes) {
-  if (bytes === undefined || bytes === null) return '—';
-  if (bytes === 0) return '0 B';
-  
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const k = 1024;
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const size = parseFloat((bytes / Math.pow(k, i)).toFixed(2));
-  
-  return `${size} ${units[i]}`;
-}
-
-function formatEventValue(value) {
-  if (value === true) return '<span class="value-true">true</span>';
-  if (value === false) return '<span class="value-false">false</span>';
-  if (typeof value === 'string') return `"${escapeHtml(value)}"`;
-  if (typeof value === 'object') return escapeHtml(JSON.stringify(value));
-  return String(value);
-}
-
 function getValueClass(value) {
   if (value === true) return 'value-true';
   if (value === false) return 'value-false';
@@ -1075,14 +1020,6 @@ function getTextareaSelector(textarea) {
   if (textarea.id) return `#${textarea.id}`;
   if (textarea.className) return `.${textarea.className.split(' ')[0]}`;
   return '';
-}
-
-// Counter Animation
-function animateCounter(element) {
-  element.classList.add('updated');
-  setTimeout(() => {
-    element.classList.remove('updated');
-  }, 300);
 }
 
 function clearAllData() {
@@ -1386,31 +1323,6 @@ function onNavHandler() {
   // Re-check Do Not Track status on navigation
   checkDoNotTrack();
 }
-function parseClientIDFromUrl(url) {
-  let section = url.split("/");
-  section.splice(1,1); 
-  return section[section.length - 3];
-}
-
-function parseContextHashFromUrl(url) {
-  let section = url.split("/");
-  let userHashQS = section[section.length - 1];
-  if (!userHashQS || userHashQS.length == 0) {
-    return null;
-  }
-  const [hash, _] = userHashQS.split("?");
-  return hash;
-}
-function parseUrlForContext(url) {
-  let userObj = {};
-  try {
-    const userHash = parseContextHashFromUrl(url);
-    userObj = JSON.parse(atob(userHash));
-  } catch (err) {
-    log(`error in parseUrlForContext() err=${err.message}`);
-  }
-  return userObj;
-}
 function updateUserContextDetails(request) {
   if (!request || !request.url) {
     return {};
@@ -1455,26 +1367,6 @@ function updateUserContextDetails(request) {
   clientIDValue.textContent = `Client-side ID: ${clientID}`;
 
   return userObj;
-}
-function getFlagsInExperiment(flagJSON){
-  let flags = {};
-
-  if (!flagJSON){
-    return flags;
-  }
-
-  for (let key in flagJSON){
-    let value = flagJSON[key];
-    if (!value?.reason){
-      continue;
-    }
-
-    if (value.reason?.inExperiment === true){
-      flags[key] = value;
-    }
-  }
-
-  return flags;
 }
 function evalxHandler(request) {
   const url = request.request?.url;

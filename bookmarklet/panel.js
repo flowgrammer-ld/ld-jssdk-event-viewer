@@ -49,31 +49,15 @@
   };
 
   // ================================================================
-  // Helpers
+  // Helpers (shared utilities from LDUtils, plus local DOM helpers)
   // ================================================================
   function $(sel) { return shadow.querySelector(sel); }
   function $$(sel) { return shadow.querySelectorAll(sel); }
-  function ts() { return new Date().toISOString().replace('T', ' ').substring(0, 19); }
 
-  function escapeHtml(text) {
-    var d = document.createElement('div');
-    d.textContent = text;
-    return d.innerHTML;
-  }
-
-  function formatByteSize(bytes) {
-    if (bytes == null) return '\u2014';
-    if (bytes === 0) return '0 B';
-    var units = ['B', 'KB', 'MB', 'GB'];
-    var k = 1024;
-    var i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + units[i];
-  }
-
-  function animateCounter(el) {
-    el.classList.add('updated');
-    setTimeout(function () { el.classList.remove('updated'); }, 300);
-  }
+  var ts = LDUtils.getTimestamp;
+  var escapeHtml = LDUtils.escapeHtml;
+  var formatByteSize = LDUtils.formatByteSize;
+  var animateCounter = LDUtils.animateCounter;
 
   var logEditor = {
     insert: function (msg) {
@@ -86,40 +70,11 @@
     }
   };
 
-  // ================================================================
-  // GoalTracker helpers (from goalTracker-mod.js)
-  // ================================================================
-  function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
-  function doesUrlMatch(matcher, href, search, hash) {
-    var keepHash = (matcher.kind === 'substring' || matcher.kind === 'regex') && hash.includes('/');
-    var canonical = (keepHash ? href : href.replace(hash, '')).replace(search, '');
-    var regex, testUrl;
-    switch (matcher.kind) {
-      case 'exact':     testUrl = href;      regex = new RegExp('^' + escapeRegex(matcher.url) + '/?$'); break;
-      case 'canonical': testUrl = canonical;  regex = new RegExp('^' + escapeRegex(matcher.url) + '/?$'); break;
-      case 'substring': testUrl = canonical;  regex = new RegExp('.*' + escapeRegex(matcher.substring) + '.*$'); break;
-      case 'regex':     testUrl = canonical;  regex = new RegExp(matcher.pattern); break;
-      default: return false;
-    }
-    return regex.test(testUrl);
-  }
-
-  // ================================================================
-  // URL parsers
-  // ================================================================
-  function parseContextHash(url) {
-    var parts = url.split('/');
-    var last = parts[parts.length - 1];
-    return (last && last.length) ? last.split('?')[0] : null;
-  }
-  function parseClientID(url) {
-    var s = url.split('/'); s.splice(1, 1);
-    return s[s.length - 3];
-  }
-  function parseContext(url) {
-    try { return JSON.parse(atob(parseContextHash(url))); } catch (e) { return {}; }
-  }
+  // Shared utilities from LDUtils
+  var doesUrlMatch = LDUtils.doesUrlMatch;
+  var parseContextHash = LDUtils.parseContextHashFromUrl;
+  var parseClientID = LDUtils.parseClientIDFromUrl;
+  var parseContext = LDUtils.parseUrlForContext;
 
   // ================================================================
   // Load CSS into shadow DOM & build panel
@@ -337,33 +292,10 @@
     }
   }
 
-  // ================================================================
-  // Format helpers
-  // ================================================================
-  function fmtFlagValue(v) {
-    if (v === true) return '<span class="value-true">true</span>';
-    if (v === false) return '<span class="value-false">false</span>';
-    if (typeof v === 'string') return '<span class="value-string">"' + escapeHtml(v) + '"</span>';
-    if (typeof v === 'number') return '<span class="value-number">' + v + '</span>';
-    if (typeof v === 'object') return '<span class="value-string">' + escapeHtml(JSON.stringify(v)) + '</span>';
-    return String(v);
-  }
-
-  function fmtReason(r) {
-    if (!r) return '<span style="color:#999;">\u2014</span>';
-    var h = '';
-    if (r.kind) h += '<span class="reason-badge reason-kind">' + escapeHtml(r.kind) + '</span>';
-    if (r.inExperiment) h += '<span class="reason-badge reason-experiment">In Experiment</span>';
-    return h || '<span style="color:#999;">\u2014</span>';
-  }
-
-  function fmtEventValue(v) {
-    if (v === true) return '<span class="value-true">true</span>';
-    if (v === false) return '<span class="value-false">false</span>';
-    if (typeof v === 'string') return '"' + escapeHtml(v) + '"';
-    if (typeof v === 'object') return escapeHtml(JSON.stringify(v));
-    return String(v);
-  }
+  // Format helpers (from LDUtils)
+  var fmtFlagValue = LDUtils.formatFlagValue;
+  var fmtReason = LDUtils.formatFlagReason;
+  var fmtEventValue = LDUtils.formatEventValue;
 
   function detailRow(key, val) {
     if (val == null) return '';
@@ -668,14 +600,7 @@
     }, { custom: 0, click: 0, identify: 0, feature: 0 });
   }
 
-  function getFlagsInExperiment(flags) {
-    var out = {};
-    if (!flags) return out;
-    for (var k in flags) {
-      if (flags[k] && flags[k].reason && flags[k].reason.inExperiment) out[k] = flags[k];
-    }
-    return out;
-  }
+  var getFlagsInExperiment = LDUtils.getFlagsInExperiment;
 
   // ================================================================
   // Clear / Export
