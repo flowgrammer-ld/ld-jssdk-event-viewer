@@ -25,6 +25,8 @@ mkdir -p "${DIST_DIR}"
 # Copy shared utilities
 cp "${SHARED_DIR}/ld-utils.js" "${DIST_DIR}/ld-utils.js" && chmod 644 "${DIST_DIR}/ld-utils.js"
 echo "    ld-utils.js (shared)"
+cp "${SHARED_DIR}/panel-core.js" "${DIST_DIR}/panel-core.js" && chmod 644 "${DIST_DIR}/panel-core.js"
+echo "    panel-core.js (shared)"
 
 # Copy bookmarklet modules
 for f in loader.js interceptors.js panel-html.js panel.js bookmarklet.css; do

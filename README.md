@@ -89,12 +89,13 @@ For GitHub Pages, the `gh-pages` branch holds the built `docs/dist/` directory. 
 ```
 shared/
   ld-utils.js        Shared utilities (URL parsers, formatters, helpers)
+  panel-core.js      Shared panel rendering, interaction & event handling
 
 bookmarklet/
   loader.js          Entry point – loaded by bookmarklet URL or script tag
   interceptors.js    Monkey-patches fetch, XHR, EventSource
   panel-html.js      HTML template (injected into Shadow DOM)
-  panel.js           UI logic, event bus wiring, display code
+  panel.js           Thin adapter: Shadow DOM, draggable, event bus wiring
   bookmarklet.css    Scoped styles for the overlay panel
 
 docs/
@@ -106,7 +107,7 @@ manifest.json, devtools.html, devtools.js, panel.html, panel.js,
 mystyle.css
 ```
 
-The `shared/ld-utils.js` module is used by both the extension (`panel.js`) and the bookmarklet. It provides URL parsing, HTML escaping, value formatting, and goal matching — eliminating ~120 lines of duplication.
+The `shared/` directory contains code used by both the extension and the bookmarklet. `ld-utils.js` provides URL parsing, HTML escaping, value formatting, and goal matching. `panel-core.js` provides all shared UI rendering, interaction handling, and event processing — the extension and bookmarklet each contain only a thin adapter (~380 and ~180 lines respectively) for their platform-specific concerns (Chrome DevTools HAR timing vs Shadow DOM / event bus).
 
 The bookmarklet uses a **Shadow DOM** to isolate styles from the host page. A lightweight event bus (`window.__ldEventBus`) connects the network interceptors to the UI.
 
