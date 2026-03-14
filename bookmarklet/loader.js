@@ -72,6 +72,7 @@
 
   var modules = [
     baseUrl + '/ld-utils.js',
+    baseUrl + '/panel-core.js',
     baseUrl + '/interceptors.js',
     baseUrl + '/panel-html.js',
     baseUrl + '/panel.js'
