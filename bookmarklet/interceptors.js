@@ -27,13 +27,30 @@
   };
 
   // ----------------------------------------------------------------
-  // Helpers (from shared/ld-utils.js)
+  // Helpers (inline copies of URL parsers from panel.js)
   // ----------------------------------------------------------------
-  var isLDUrl = LDUtils.isLaunchDarklyUrl;
-  var parseContextHashFromUrl = LDUtils.parseContextHashFromUrl;
-  var parseClientIDFromUrl = LDUtils.parseClientIDFromUrl;
-  var parseUrlForContext = LDUtils.parseUrlForContext;
-  var ts = LDUtils.getTimestamp;
+  function isLDUrl(url) {
+    return url && (url.includes('launchdarkly.com') || url.includes('launchdarkly.us'));
+  }
+  function parseContextHashFromUrl(url) {
+    var parts = url.split('/');
+    var last = parts[parts.length - 1] || '';
+    return last.split('?')[0] || null;
+  }
+  function parseClientIDFromUrl(url) {
+    var parts = url.split('/');
+    parts.splice(1, 1);
+    return parts[parts.length - 3];
+  }
+  function parseUrlForContext(url) {
+    try {
+      var hash = parseContextHashFromUrl(url);
+      return JSON.parse(atob(hash));
+    } catch (e) { return {}; }
+  }
+  function ts() {
+    return new Date().toISOString().replace('T', ' ').substring(0, 19);
+  }
 
   // ----------------------------------------------------------------
   // fetch monkey-patch

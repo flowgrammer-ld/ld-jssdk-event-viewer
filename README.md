@@ -87,29 +87,25 @@ For GitHub Pages, the `gh-pages` branch holds the built `docs/dist/` directory. 
 ## Architecture
 
 ```
-shared/
-  ld-utils.js        Shared utilities (URL parsers, formatters, helpers)
-  panel-core.js      Shared panel rendering, interaction & event handling
-
-bookmarklet/
-  loader.js          Entry point – loaded by bookmarklet URL or script tag
-  interceptors.js    Monkey-patches fetch, XHR, EventSource
-  panel-html.js      HTML template (injected into Shadow DOM)
-  panel.js           Thin adapter: Shadow DOM, draggable, event bus wiring
-  bookmarklet.css    Scoped styles for the overlay panel
-
-docs/
-  index.html         GitHub Pages landing page
-  test.html          Local test page with mock LD traffic
-
-# Original extension files:
+# Extension files (primary):
 manifest.json, devtools.html, devtools.js, panel.html, panel.js,
 mystyle.css
+
+bookmarklet/
+  loader.js            Entry point – loaded by bookmarklet URL or script tag
+  interceptors.js      Monkey-patches fetch, XHR, EventSource
+  panel-html.js        HTML template (injected into Shadow DOM)
+  bookmarklet-init.js  Thin adapter: Shadow DOM, draggable, event bus wiring
+  bookmarklet.css      Scoped styles for the overlay panel
+
+docs/
+  index.html           GitHub Pages landing page
+  test.html            Local test page with mock LD traffic
 ```
 
-The `shared/` directory contains code used by both the extension and the bookmarklet. `ld-utils.js` provides URL parsing, HTML escaping, value formatting, and goal matching. `panel-core.js` provides all shared UI rendering, interaction handling, and event processing — the extension and bookmarklet each contain only a thin adapter (~380 and ~180 lines respectively) for their platform-specific concerns (Chrome DevTools HAR timing vs Shadow DOM / event bus).
+The extension's `panel.js` is the primary codebase. It exposes a `window.LDPanel` API that the bookmarklet adapter (`bookmarklet-init.js`) uses at runtime. DOM queries go through a `_root` variable that defaults to `document` for the extension and is set to `shadowRoot` for the bookmarklet.
 
-The bookmarklet uses a **Shadow DOM** to isolate styles from the host page. A lightweight event bus (`window.__ldEventBus`) connects the network interceptors to the UI.
+The bookmarklet uses a **Shadow DOM** to isolate styles from the host page. A lightweight event bus (`window.__ldEventBus`) connects the network interceptors to the UI. `build.sh` copies `panel.js` alongside the bookmarklet files into `docs/dist/v1/` for serving via GitHub Pages.
 
 ## Credits
 
