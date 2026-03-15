@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LD Event Viewer – Demo</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav><a href="./">&larr; Home</a></nav>
+  <h1>LD Event Viewer <span class="heading-accent">&ndash; Demo</span></h1>
+  <p class="intro">
+    The Event Viewer shows you what the <a href="https://docs.launchdarkly.com/sdk/client-side/javascript" target="_blank">LaunchDarkly JavaScript SDK</a> is doing under the hood &mdash; flag evaluations, context payloads, tracking events, and streaming connections. This page simulates that traffic so you can try the viewer without a real LD environment.
+  </p>
+
+  <!-- ============================================================ -->
+  <div class="section">
+    <h3>Launch the viewer</h3>
+    <div class="launch-row">
+      <button class="launch" id="launchBtn">Launch Event Viewer</button>
+      <a class="bm-drag" id="bmDrag" href="#" title="Drag to bookmarks bar">LD Event Viewer</a>
+    </div>
+    <p><small>Drag the button above to your bookmarks bar, then click it on any page with the LD SDK.</small></p>
+
+    <details class="sdk-key-row" id="sdkKeyDetails">
+      <summary id="sdkKeySummary">Connect to a real LD environment</summary>
+      <div class="sdk-key-inner">
+        <input id="sdkKeyInput" type="text" placeholder="Paste client-side ID" autocomplete="off" spellcheck="false" />
+        <button id="sdkKeyBtn" class="sdk-key-btn">Connect</button>
+      </div>
+    </details>
+  </div>
+
+  <hr>
+
+  <!-- ============================================================ -->
+  <div class="section">
+    <h3 id="simHeader">Try it out</h3>
+    <p id="simDesc"><small>Send simulated SDK traffic to the viewer.</small></p>
+
+    <div class="ops-list">
+
+      <div class="op-row">
+        <button class="sim-btn all" id="simAll">Send All</button>
+        <span class="info-wrap">
+          <button class="info-toggle" aria-label="What does Send All do?">?</button>
+          <span class="info-tip"><strong>Send All</strong> fires every operation below in sequence: flag evaluation, identify, feature &amp; summary events, custom tracking, goals, and streaming.</span>
+        </span>
+      </div>
+
+      <hr class="sim-divider">
+
+      <div class="op-row">
+        <button class="sim-btn eval" id="simEval">Fetch Flags</button>
+        <span class="info-wrap">
+          <button class="info-toggle" aria-label="What are flag evaluations?">?</button>
+          <span class="info-tip"><strong>Flag evaluations</strong> happen when the SDK initializes. It sends the current context to LaunchDarkly and gets back every feature flag value &mdash; booleans, strings, numbers, JSON objects &mdash; with variation and reason info.</span>
+        </span>
+      </div>
+
+      <!-- Send Identity — opens inline panel -->
+      <div class="op-row">
+        <button class="sim-btn identify" id="simIdentifyToggle">Send Identity</button>
+        <span class="info-wrap">
+          <button class="info-toggle" aria-label="What is an identify event?">?</button>
+          <span class="info-tip"><strong>Identify</strong> tells the SDK who the current user is. Edit the context and click <strong>Send</strong>.</span>
+        </span>
+      </div>
+      <div class="op-panel" id="identityPanel">
+        <div class="op-panel-header">
+          <label class="eval-label">Context</label>
+          <button class="eval-reset-btn" id="resetIdentityContext">Reset</button>
+        </div>
+        <textarea id="identityContext" class="eval-editor" spellcheck="false" rows="10"></textarea>
+        <div class="op-panel-actions">
+          <button class="sim-btn identify" id="simIdentify">Send</button>
+        </div>
+      </div>
+
+      <!-- Track Custom Event — opens inline panel -->
+      <div class="op-row">
+        <button class="sim-btn custom" id="simCustomToggle">Track Custom Event</button>
+        <span class="info-wrap">
+          <button class="info-toggle" aria-label="What are custom events?">?</button>
+          <span class="info-tip"><strong>Custom events</strong> are tracking calls via <code>track('event-key', data, metricValue)</code>. Edit the event data and click <strong>Send</strong>.</span>
+        </span>
+      </div>
+      <div class="op-panel" id="customPanel">
+        <div class="op-panel-header">
+          <label class="eval-label">Event data</label>
+          <button class="eval-reset-btn" id="resetEventData">Reset</button>
+        </div>
+        <p class="op-panel-hint"><code>key</code> is the event name, <code>metricValue</code> is the numeric metric, <code>data</code> is the JSON payload.</p>
+        <textarea id="eventDataEditor" class="eval-editor" spellcheck="false" rows="6"></textarea>
+        <div class="op-panel-actions">
+          <button class="sim-btn custom" id="simCustom">Send</button>
+        </div>
+      </div>
+
+      <div class="op-row">
+        <button class="sim-btn goals" id="simGoals">Fetch Goals</button>
+        <span class="info-wrap">
+          <button class="info-toggle" aria-label="What are conversion goals?">?</button>
+          <span class="info-tip"><strong>Conversion goals</strong> tell the SDK what user actions to watch for &mdash; pageview (URL match) or click (CSS selector match). The viewer validates each goal against the current page.</span>
+        </span>
+      </div>
+
+      <div class="op-row">
+        <button class="sim-btn stream" id="simStream">Open Stream</button>
+        <span class="info-wrap">
+          <button class="info-toggle" aria-label="What is the live stream?">?</button>
+          <span class="info-tip"><strong>Streaming</strong> is how the SDK receives flag updates in real time via Server-Sent Events (SSE). The viewer shows when the connection opens, messages received, and errors.</span>
+        </span>
+      </div>
+
+      <!-- Evaluate — opens inline panel -->
+      <div class="op-row">
+        <button class="sim-btn eval" id="evalToggle">Evaluate</button>
+        <span class="info-wrap">
+          <button class="info-toggle" aria-label="What does Evaluate do?">?</button>
+          <span class="info-tip"><strong>Evaluate</strong> sends a single flag with a specific value to the viewer, evaluated against a context you define. Results are additive &mdash; each click adds to the viewer panel.</span>
+        </span>
+      </div>
+      <div class="op-panel" id="evalPanel">
+        <div class="eval-flag-fields">
+          <div class="eval-field">
+            <label class="eval-label">Flag</label>
+            <div class="eval-flag-row">
+              <select id="flagPicker" class="eval-select">
+                <option value="enable-new-ui">enable-new-ui</option>
+                <option value="dark-mode">dark-mode</option>
+                <option value="banner-text">banner-text</option>
+                <option value="max-items">max-items</option>
+                <option value="checkout-flow">checkout-flow</option>
+                <option value="rate-limit">rate-limit</option>
+                <option value="maintenance-mode">maintenance-mode</option>
+                <option value="__custom">Custom flag key...</option>
+              </select>
+              <input id="customFlagKey" class="eval-input" type="text" placeholder="my-flag-key" style="display:none" />
+            </div>
+          </div>
+          <div class="eval-field">
+            <label class="eval-label">Value</label>
+            <input id="flagValue" class="eval-input" type="text" placeholder='true, false, "string", 42, {"key":"val"}' />
+            <small class="eval-value-hint">Booleans, numbers, strings (quoted), or JSON</small>
+          </div>
+        </div>
+        <div class="op-panel-header">
+          <label class="eval-label">Context</label>
+          <button class="eval-reset-btn" id="resetEvalContext">Reset</button>
+        </div>
+        <textarea id="evalContext" class="eval-editor" spellcheck="false" rows="8"></textarea>
+        <div class="op-panel-actions">
+          <button class="sim-btn eval" id="evalBtn">Evaluate</button>
+          <span id="evalStatus" class="eval-status"></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="section">
+    <h3>Log</h3>
+    <div id="log"></div>
+  </div>
+
+<script src="demo.js" defer></script>
+</body>
+</html>

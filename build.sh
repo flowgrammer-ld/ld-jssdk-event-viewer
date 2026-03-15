@@ -21,12 +21,20 @@ echo "==> Building bookmarklet assets into ${DIST_DIR}/"
 rm -rf "${DIST_DIR}"
 mkdir -p "${DIST_DIR}"
 
-# Copy extension's panel.js (shared with bookmarklet at runtime)
-cp panel.js "${DIST_DIR}/panel.js" && chmod 644 "${DIST_DIR}/panel.js"
-echo "    panel.js (extension)"
+# Copy extension files (shared with bookmarklet at runtime)
+for f in goalTracker-mod.js panel.js; do
+  cp "${f}" "${DIST_DIR}/${f}" && chmod 644 "${DIST_DIR}/${f}"
+  echo "    ${f} (extension)"
+done
+
+# Copy shared extension files (hot-linked by bookmarklet)
+cp mystyle.css "${DIST_DIR}/mystyle.css" && chmod 644 "${DIST_DIR}/mystyle.css"
+echo "    mystyle.css (extension)"
+cp panel.html "${DIST_DIR}/panel.html" && chmod 644 "${DIST_DIR}/panel.html"
+echo "    panel.html (extension)"
 
 # Copy bookmarklet modules
-for f in loader.js interceptors.js panel-html.js bookmarklet-init.js bookmarklet.css; do
+for f in loader.js interceptors.js bookmarklet.js bookmarklet-overrides.css; do
   cp "${SRC_DIR}/${f}" "${DIST_DIR}/${f}" && chmod 644 "${DIST_DIR}/${f}"
   echo "    ${f}"
 done
