@@ -634,23 +634,23 @@ function createEventCardBody(eventData) {
   } else if (eventData.type === 'feature') {
     // Feature event
     html += createDetailRow('Flag Key', eventData.key);
-    html += createDetailRow('Value', formatEventValue(eventData.data?.value));
-    html += createDetailRow('Variation', eventData.data?.variation);
-    if (eventData.data?.reason) {
+    html += createDetailRow('Value', formatEventValue(eventData.data && eventData.data.value));
+    html += createDetailRow('Variation', eventData.data && eventData.data.variation);
+    if (eventData.data && eventData.data.reason) {
       html += createDetailRow('Reason', formatFlagReason(eventData.data.reason));
     }
   } else if (eventData.type === 'custom') {
     // Custom event
     html += createDetailRow('Metric Key', eventData.key);
-    if (eventData.data?.metricValue !== undefined) {
+    if (eventData.data && eventData.data.metricValue !== undefined) {
       html += createDetailRow('Metric Value', eventData.data.metricValue);
     }
-    if (eventData.data?.url) {
+    if (eventData.data && eventData.data.url) {
       html += createDetailRow('URL', eventData.data.url);
     }
   } else if (eventData.type === 'identify') {
     // Identify event - show context details
-    if (eventData.data?.context) {
+    if (eventData.data && eventData.data.context) {
       const context = eventData.data.context;
       const contextKind = context.kind || 'user';
       html += createDetailRow('Context Kind', contextKind);
@@ -710,7 +710,7 @@ function createEventCardBody(eventData) {
     }
   } else if (eventData.type === 'summary') {
     // Summary event
-    if (eventData.data?.features) {
+    if (eventData.data && eventData.data.features) {
       html += '<div class="summary-features">';
       for (const flagKey in eventData.data.features) {
         const feature = eventData.data.features[flagKey];
@@ -1220,22 +1220,25 @@ function clearAllData() {
   document.querySelector("#clientIDValue").textContent = "";
 }
 
+function qsVal(sel) { var el = document.querySelector(sel); return el ? el.value || "" : ""; }
+function qsText(sel) { var el = document.querySelector(sel); return el ? el.textContent || "0" : "0"; }
+
 function exportData() {
   const exportObj = {
     exportedAt: new Date().toISOString(),
-    context: document.querySelector(".user-context-details")?.value || "",
-    featureFlags: document.querySelector(".featureflags-details")?.value || "",
-    events: document.querySelector("#networkDetails")?.value || "",
-    experimentGoals: document.querySelector(".experiments-details")?.value || "",
+    context: qsVal(".user-context-details"),
+    featureFlags: qsVal(".featureflags-details"),
+    events: qsVal("#networkDetails"),
+    experimentGoals: qsVal(".experiments-details"),
     counters: {
-      custom: document.querySelector("#custom-value")?.textContent || "0",
-      identify: document.querySelector("#identify-value")?.textContent || "0",
-      click: document.querySelector("#click-value")?.textContent || "0",
-      feature: document.querySelector("#feature-value")?.textContent || "0",
-      experiments: document.querySelector("#experiments-value")?.textContent || "0",
-      experimentGoals: document.querySelector("#experiments-goal-value")?.textContent || "0",
-      streamConnections: document.querySelector("#streamConnection-value")?.textContent || "0",
-      streamEvents: document.querySelector("#streamevent-value")?.textContent || "0"
+      custom: qsText("#custom-value"),
+      identify: qsText("#identify-value"),
+      click: qsText("#click-value"),
+      feature: qsText("#feature-value"),
+      experiments: qsText("#experiments-value"),
+      experimentGoals: qsText("#experiments-goal-value"),
+      streamConnections: qsText("#streamConnection-value"),
+      streamEvents: qsText("#streamevent-value")
     }
   };
   
@@ -1256,65 +1259,47 @@ function exportData() {
 
 function checkDoNotTrack() {
   try {
-    if (!chrome.runtime?.id) {
+    if (!chrome.runtime || !chrome.runtime.id) {
       return;
     }
-    
-    chrome.scripting.executeScript(
-      {
-        target: { tabId: chrome.devtools.inspectedWindow.tabId },
-        func: () => {
-          // Global Privacy Control (GPC) is the modern replacement for DNT
-          const gpcEnabled = navigator.globalPrivacyControl === true;
-          
-          // Legacy Do Not Track (deprecated, removed from Chrome Dec 2025)
-          const dntEnabled = navigator.doNotTrack === "1" || 
-                            navigator.doNotTrack === "yes" || 
-                            window.doNotTrack === "1";
-          
-          return {
-            gpc: gpcEnabled,
-            dnt: dntEnabled,
-            privacySignal: gpcEnabled || dntEnabled
-          };
-        },
-      },
-      (result) => {
-        if (chrome.runtime.lastError) {
-          console.log('checkDoNotTrack error:', chrome.runtime.lastError.message);
-          return;
-        }
-        
-        if (result && result[0]) {
-          const { gpc, dnt, privacySignal } = result[0].result;
-          
-          // Find existing banner or create a new one
-          let dntBanner = document.getElementById('dnt-status-banner');
-          if (!dntBanner) {
-            dntBanner = document.createElement('div');
-            dntBanner.id = 'dnt-status-banner';
-            dntBanner.className = 'dnt-banner';
-            document.body.insertBefore(dntBanner, document.body.firstChild);
-          }
-          
-          // Determine message based on which signal is active
-          if (gpc) {
-            dntBanner.textContent = 'Global Privacy Control (GPC) is enabled in this browser.';
-          } else if (dnt) {
-            dntBanner.textContent = 'Do Not Track (DNT) is enabled in this browser.';
-          } else {
-            dntBanner.textContent = 'No privacy signal (GPC/DNT) is enabled in this browser.';
-          }
-          
-          // Set different colors based on privacy signal status
-          if (privacySignal) {
-            dntBanner.style.backgroundColor = '#f44336'; // Red for enabled
-          } else {
-            dntBanner.style.backgroundColor = '#4CAF50'; // Green for disabled
-          }
-        }
+
+    chrome.scripting.executeScript({
+      target: { tabId: chrome.devtools.inspectedWindow.tabId },
+      func: function () {
+        var gpcEnabled = navigator.globalPrivacyControl === true;
+        var dntEnabled = navigator.doNotTrack === "1" ||
+                         navigator.doNotTrack === "yes" ||
+                         window.doNotTrack === "1";
+        return {
+          gpc: gpcEnabled,
+          dnt: dntEnabled,
+          privacySignal: gpcEnabled || dntEnabled
+        };
       }
-    );
+    }).then(function (result) {
+      if (!result || !result[0]) return;
+      var r = result[0].result;
+
+      var dntBanner = document.getElementById('dnt-status-banner');
+      if (!dntBanner) {
+        dntBanner = document.createElement('div');
+        dntBanner.id = 'dnt-status-banner';
+        dntBanner.className = 'dnt-banner';
+        document.body.insertBefore(dntBanner, document.body.firstChild);
+      }
+
+      if (r.gpc) {
+        dntBanner.textContent = 'Global Privacy Control (GPC) is enabled in this browser.';
+      } else if (r.dnt) {
+        dntBanner.textContent = 'Do Not Track (DNT) is enabled in this browser.';
+      } else {
+        dntBanner.textContent = 'No privacy signal (GPC/DNT) is enabled in this browser.';
+      }
+
+      dntBanner.style.backgroundColor = r.privacySignal ? '#f44336' : '#4CAF50';
+    }).catch(function (err) {
+      console.log('checkDoNotTrack error:', err.message);
+    });
   } catch (err) {
     console.log('checkDoNotTrack exception:', err.message);
   }
@@ -1330,11 +1315,11 @@ function onEventSourceEvents(request) {
     return;
   }
   
-  const url = request.request?.url;
+  var url = request.request && request.request.url;
   if (!url || !url.includes("clientstream")) {
     return;
   }
-  
+
   const hash = parseContextHashFromUrl(url);
   
   // Validate hash to prevent null/undefined duplicates
@@ -1470,11 +1455,11 @@ function getFlagsInExperiment(flagJSON){
 
   for (let key in flagJSON){
     let value = flagJSON[key];
-    if (!value?.reason){
+    if (!value || !value.reason){
       continue;
     }
 
-    if (value.reason?.inExperiment === true){
+    if (value.reason && value.reason.inExperiment === true){
       flags[key] = value;
     }
   }
@@ -1482,7 +1467,7 @@ function getFlagsInExperiment(flagJSON){
   return flags;
 }
 function evalxHandler(request) {
-  const url = request.request?.url;
+  var url = request.request && request.request.url;
   
   // Check if this is a LaunchDarkly SDK eval request
   if (!isLaunchDarklyUrl(url)) {
@@ -1495,7 +1480,7 @@ function evalxHandler(request) {
   }
   
   // Skip empty evalx responses
-  if (url.includes("/sdk/evalx/") && request.response?.content?.size === 0) {
+  if (url.includes("/sdk/evalx/") && request.response && request.response.content && request.response.content.size === 0) {
     return;
   }
 
@@ -1604,10 +1589,10 @@ function closeStreamConnection(hash) {
 }
 
 function eventsHandler(request) {
-  const url = request.request?.url;
-  
+  var url = request.request && request.request.url;
+
   // Only process POST requests to LaunchDarkly events endpoint
-  if (!isLaunchDarklyUrl(url) || request.request?.method !== "POST") {
+  if (!isLaunchDarklyUrl(url) || !request.request || request.request.method !== "POST") {
     return;
   }
 
@@ -1616,7 +1601,7 @@ function eventsHandler(request) {
   }
 
   // Parse the POST data
-  const postData = request.request?.postData?.text;
+  var postData = request.request && request.request.postData && request.request.postData.text;
   if (!postData) {
     log(`eventsHandler() no postData, skipping.`);
     return;
@@ -1766,18 +1751,18 @@ function countEventTypes(events) {
 }
 
 function goalsHandler(request) {
-  const url = request.request?.url;
-  
+  var url = request.request && request.request.url;
+
   if (!isLaunchDarklyUrl(url)) {
     return;
   }
-  
+
   // Only process /goals/ endpoint with non-empty response
   if (!url.includes("/goals/")) {
     return;
   }
-  
-  if (request.response?.content?.size === 0) {
+
+  if (request.response && request.response.content && request.response.content.size === 0) {
     return;
   }
   
@@ -1801,9 +1786,9 @@ function goalsHandler(request) {
     ])
       .then((results) => {
         const [winHref, winSearch, winHash] = results;
-        const href = winHref.value?.[0]?.result || '';
-        const search = winSearch.value?.[0]?.result || '';
-        const hash = winHash.value?.[0]?.result || '';
+        var href = (winHref.value && winHref.value[0] && winHref.value[0].result) || '';
+        var search = (winSearch.value && winSearch.value[0] && winSearch.value[0].result) || '';
+        var hash = (winHash.value && winHash.value[0] && winHash.value[0].result) || '';
         processGoals(goals, href, search, hash);
       })
       .catch((err) => {
@@ -2053,17 +2038,17 @@ function processGoals(goals, locationHref, search, hash) {
 
 function logInspectedWindow(msg) {
   try {
-    if (!chrome.runtime?.id) {
+    if (!chrome.runtime || !chrome.runtime.id) {
       return;
     }
-    
+
     chrome.scripting.executeScript({
       target: { tabId: chrome.devtools.inspectedWindow.tabId },
       args: [msg],
-      func: (str) => {
+      func: function (str) {
         console.log(str);
-      },
-    }).catch(() => {
+      }
+    }).catch(function () {
       // Silently handle errors when context is invalidated
     });
   } catch (err) {
@@ -2071,28 +2056,24 @@ function logInspectedWindow(msg) {
   }
 }
 
-function evalInspectPage(code, params = "") {
-  return new Promise((resolve, reject) => {
+function evalInspectPage(code, params) {
+  if (params === undefined) params = "";
+  return new Promise(function (resolve, reject) {
     try {
-      if (!chrome.runtime?.id) {
+      if (!chrome.runtime || !chrome.runtime.id) {
         reject(new Error('Extension context invalidated'));
         return;
       }
-      
-      chrome.scripting.executeScript(
-        {
-          target: { tabId: chrome.devtools.inspectedWindow.tabId },
-          args: [params],
-          func: code,
-        },
-        function (result) {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          resolve(result);
-        }
-      );
+
+      chrome.scripting.executeScript({
+        target: { tabId: chrome.devtools.inspectedWindow.tabId },
+        args: [params],
+        func: code
+      }).then(function (result) {
+        resolve(result);
+      }).catch(function (err) {
+        reject(err);
+      });
     } catch (err) {
       reject(err);
     }
@@ -2100,37 +2081,36 @@ function evalInspectPage(code, params = "") {
 }
 
 function logNetwork(request) {
-  const url = request.request?.url;
-  
+  var url = request.request && request.request.url;
+
   if (!isLaunchDarklyUrl(url)) {
     return;
   }
-  
+
   // Only process /events/bulk/ or /sdk/eval endpoints
   if (!url.includes("/events/bulk/") && !url.includes("/sdk/eval")) {
     return;
   }
-  
-  new Promise((resolve) => {
-    const method = request.request?.method;
-    
+
+  new Promise(function (resolve) {
+    var method = request.request && request.request.method;
+
     switch (method) {
       case "POST":
-        resolve(request.request?.postData?.text || null);
+        resolve((request.request && request.request.postData && request.request.postData.text) || null);
         break;
       case "GET":
-        request.getContent((body) => {
+        request.getContent(function (body) {
           if (!body) {
             return resolve(null);
           }
           try {
-            const parsed = JSON.parse(body);
-            // Check for empty response (works for arrays and objects)
+            var parsed = JSON.parse(body);
             if (!parsed || (typeof parsed === 'object' && Object.keys(parsed).length === 0)) {
               return resolve(null);
             }
           } catch (err) {
-            log(`logNetwork() JSON parse error: ${err.message}`);
+            log('logNetwork() JSON parse error: ' + err.message);
             return resolve(null);
           }
           resolve(body);
@@ -2140,41 +2120,38 @@ function logNetwork(request) {
         resolve(null);
         break;
     }
-  }).then((data) => {
+  }).then(function (data) {
     if (!data) {
       return;
     }
 
-    const timestamp = getTimestamp();
+    var timestamp = getTimestamp();
     extensionGlobals.logEditor.insert(
-      `\n======== [${timestamp}] EVENT START ========\n` +
-      `Method: [${request.request.method}] URL: [${url}]\n` +
-      `${JSON.stringify(data, null, 4)}\n` +
-      `======== EVENT END   ========\n`
+      '\n======== [' + timestamp + '] EVENT START ========\n' +
+      'Method: [' + request.request.method + '] URL: [' + url + ']\n' +
+      JSON.stringify(data, null, 4) + '\n' +
+      '======== EVENT END   ========\n'
     );
   });
 }
 
 function log(message) {
   try {
-    // Check if chrome.runtime is still valid
-    if (!chrome.runtime?.id) {
+    if (!chrome.runtime || !chrome.runtime.id) {
       console.log('[Extension context invalidated]', message);
       return;
     }
-    
+
     chrome.scripting.executeScript({
       target: { tabId: chrome.devtools.inspectedWindow.tabId },
       args: [message],
-      func: (str) => {
+      func: function (str) {
         console.log(str);
-      },
-    }).catch((err) => {
-      // Silently handle errors when context is invalidated
+      }
+    }).catch(function () {
       console.log('[DevTools log fallback]', message);
     });
   } catch (err) {
-    // Fallback to console.log if extension context is invalidated
     console.log('[DevTools log fallback]', message);
   }
 }
